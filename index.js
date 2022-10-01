@@ -84,8 +84,7 @@ class Action {
         this.includeSymbols
           ? "--include-symbols -p:SymbolPackageFormat=snupkg"
           : ""
-      } --no-build -c Release ${this.projectFile}`
-      //-o .`
+      } --no-build -c Release ${this.projectFile} -o .`
     );
 
     const packages = fs.readdirSync(".").filter((fn) => fn.endsWith("nupkg"));
@@ -93,10 +92,15 @@ class Action {
 
     const pushCmd = `dotnet nuget push *.nupkg --source ${
         this.nugetSource
-      } --api-key ${this.nugetKey} --skip-duplicate ${
-        !this.includeSymbols ? "-n 1" : ""
-      }`,
+      } --api-key ${this.nugetKey} --skip-duplicate `,
       pushOutput = this._executeCommand(pushCmd, { encoding: "utf-8" }).stdout;
+    
+//      const pushCmd = `dotnet nuget push *.nupkg --source ${
+//         this.nugetSource
+//       } --api-key ${this.nugetKey} --skip-duplicate ${
+//         !this.includeSymbols ? "-n 1" : ""
+//       }`,
+//       pushOutput = this._executeCommand(pushCmd, { encoding: "utf-8" }).stdout;
 
     console.log("Push output");
     console.log(pushOutput);
