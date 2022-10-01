@@ -92,7 +92,7 @@ class Action {
 
     const pushCmd = `dotnet nuget push *.nupkg --source ${
         this.nugetSource
-      } --api-key ${this.nugetKey} --skip-duplicate `,
+      } --api-key ${this.nugetKey} --skip-duplicate -n`,
       pushOutput = this._executeCommand(pushCmd, { encoding: "utf-8" }).stdout;
     
 //      const pushCmd = `dotnet nuget push *.nupkg --source ${
