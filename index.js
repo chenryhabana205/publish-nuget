@@ -97,13 +97,14 @@ class Action {
       }`,
       pushOutput = this._executeCommand(pushCmd, { encoding: "utf-8" }).stdout;
 
+    console.log("Push output");
     console.log(pushOutput);
 
     if (/error/.test(pushOutput))
       this._printErrorAndExit(`${/error.*/.exec(pushOutput)[0]}`);
 
-    const packageFilename = packages.filter((p) => p.endsWith(".nupkg"))[0],
-      symbolsFilename = packages.filter((p) => p.endsWith(".snupkg"))[0];
+    const packageFilename = packages.filter((p) => p.endsWith(".nupkg"))[0];
+      //symbolsFilename = packages.filter((p) => p.endsWith(".snupkg"))[0];
 
     process.stdout.write(
       `::set-output name=PACKAGE_NAME::${packageFilename}` + os.EOL
@@ -113,16 +114,16 @@ class Action {
         os.EOL
     );
 
-    if (symbolsFilename) {
-      process.stdout.write(
-        `::set-output name=SYMBOLS_PACKAGE_NAME::${symbolsFilename}` + os.EOL
-      );
-      process.stdout.write(
-        `::set-output name=SYMBOLS_PACKAGE_PATH::${path.resolve(
-          symbolsFilename
-        )}` + os.EOL
-      );
-    }
+//     if (symbolsFilename) {
+//       process.stdout.write(
+//         `::set-output name=SYMBOLS_PACKAGE_NAME::${symbolsFilename}` + os.EOL
+//       );
+//       process.stdout.write(
+//         `::set-output name=SYMBOLS_PACKAGE_PATH::${path.resolve(
+//           symbolsFilename
+//         )}` + os.EOL
+//       );
+//     }
 
     if (this.tagCommit) this._tagCommit(version);
   }
