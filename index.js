@@ -84,7 +84,8 @@ class Action {
         this.includeSymbols
           ? "--include-symbols -p:SymbolPackageFormat=snupkg"
           : ""
-      } --no-build -c Release ${this.projectFile} -o .`
+      } --no-build -c Release ${this.projectFile}`
+      //-o .`
     );
 
     const packages = fs.readdirSync(".").filter((fn) => fn.endsWith("nupkg"));
@@ -103,8 +104,8 @@ class Action {
     if (/error/.test(pushOutput))
       this._printErrorAndExit(`${/error.*/.exec(pushOutput)[0]}`);
 
-    const packageFilename = packages.filter((p) => p.endsWith(".nupkg"))[0];
-      //symbolsFilename = packages.filter((p) => p.endsWith(".snupkg"))[0];
+    const packageFilename = packages.filter((p) => p.endsWith(".nupkg"))[0],
+      symbolsFilename = packages.filter((p) => p.endsWith(".snupkg"))[0];
 
     process.stdout.write(
       `::set-output name=PACKAGE_NAME::${packageFilename}` + os.EOL
@@ -114,16 +115,16 @@ class Action {
         os.EOL
     );
 
-//     if (symbolsFilename) {
-//       process.stdout.write(
-//         `::set-output name=SYMBOLS_PACKAGE_NAME::${symbolsFilename}` + os.EOL
-//       );
-//       process.stdout.write(
-//         `::set-output name=SYMBOLS_PACKAGE_PATH::${path.resolve(
-//           symbolsFilename
-//         )}` + os.EOL
-//       );
-//     }
+    if (symbolsFilename) {
+      process.stdout.write(
+        `::set-output name=SYMBOLS_PACKAGE_NAME::${symbolsFilename}` + os.EOL
+      );
+      process.stdout.write(
+        `::set-output name=SYMBOLS_PACKAGE_PATH::${path.resolve(
+          symbolsFilename
+        )}` + os.EOL
+      );
+    }
 
     if (this.tagCommit) this._tagCommit(version);
   }
