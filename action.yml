@@ -1,4 +1,4 @@
-name: Publish NuGet
+name: Publish NuGet to nexus
 author: chenryhabana205
 description: Build, Pack & Publish a NuGet package with dotnet core on project version change
 
