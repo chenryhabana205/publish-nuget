@@ -38,6 +38,14 @@ inputs:
         description: Flag to toggle pushing symbols along with nuget package to the server, disabled by default
         required: false
         default: false
+    NEXUS_USERNAME:
+        description: Username for nuget source
+        required: true
+        default: false
+     NEXUS_PASSWORD:
+        description: Username for nuget source
+        required: true
+        default: false
 
 outputs:
     VERSION:
