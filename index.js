@@ -10,7 +10,7 @@ class Action {
     this.packageName = process.env.INPUT_PACKAGE_NAME;
     this.versionRegex = new RegExp(process.env.INPUT_VERSION_REGEX, "m");
     this.nugetKey = process.env.INPUT_NUGET_KEY;
-    this.nugetSource = process.env.INPUT_NEXUS_HOST; // Host de Nexus
+    this.nugetSource = process.env.INPUT_NUGET_SOURCE; // Host de Nexus
     this.repository = process.env.INPUT_NEXUS_REPOSITORY || "nuget-hosted"; // Repositorio de Nexus
     this.version = process.env.INPUT_VERSION_STATIC;
     this.includeSymbols = JSON.parse(process.env.INPUT_INCLUDE_SYMBOLS || "false");
