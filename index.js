@@ -142,7 +142,7 @@ class Action {
     this._executeCommand(packCmd);
 
     console.log("Uploading packages...");
-    const pushCmd = `dotnet nuget push *.nupkg --source ${this.nugetSource}/repository/${this.repository} --api-key ${this.nugetKey} -n`;
+    const pushCmd = `dotnet nuget push *.nupkg --source ${this.nugetSource}/repository/${this.repository}/ --api-key ${this.nugetKey} -n`;
     this._executeCommand(pushCmd);
 
     this.newVersionGenerated = true;
