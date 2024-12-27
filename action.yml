@@ -64,7 +64,7 @@ outputs:
         description: Path to the generated symbols package
 
 runs:
-    using: node18
+    using: node20
     main: index.js
 
 branding:
