@@ -57,10 +57,10 @@ class Action {
     }
 
     console.log("Building and packing the project...");
-    this._executeCommand(`dotnet build -c Release ${this.projectFile}`);
+    this._executeCommand(`dotnet build -c Release  --verbosity quiet ${this.projectFile}`);
     const packCmd = `dotnet pack ${
       this.includeSymbols ? "--include-symbols -p:SymbolPackageFormat=snupkg" : ""
-    } --no-build -c Release ${this.projectFile} -o .`;
+    } --no-build --verbosity quiet -c Release ${this.projectFile} -o .`;
     this._executeCommand(packCmd);
 
     console.log("Uploading packages...");
