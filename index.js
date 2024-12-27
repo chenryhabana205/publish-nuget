@@ -15,15 +15,20 @@ class Action {
     this.newVersionGenerated = false; // Flag para el estado de la acción
   }
 
-  _executeCommand(cmd, options) {
+  _executeCommand(cmd, options = {}) {
     console.log(`Executing: ${cmd}`);
     const [command, ...args] = cmd.split(" ");
-    const result = spawnSync(command, args, options);
+    const result = spawnSync(command, args, {
+      ...options,
+      stdio: "inherit", // Redirige la salida directamente al proceso principal
+    });
+  
     if (result.error) {
       console.error(`Command failed: ${result.error.message}`);
       process.exit(1);
     }
-    return result.stdout.toString();
+  
+    return result.status;
   }
 
   _fetchExistingVersions(packageName) {
