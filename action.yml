@@ -43,7 +43,7 @@ inputs:
         required: true
         default: false
      NEXUS_PASSWORD:
-        description: Username for nuget source
+        description: Password for nuget source
         required: true
         default: false
 
@@ -64,7 +64,7 @@ outputs:
         description: Path to the generated symbols package
 
 runs:
-    using: node16
+    using: node18
     main: index.js
 
 branding:
