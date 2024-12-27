@@ -1,206 +1,119 @@
-const os = require("os"),
-  fs = require("fs"),
-  path = require("path"),
-  https = require("https"),
-  spawnSync = require("child_process").spawnSync;
+const fs = require("fs");
+const path = require("path");
+const https = require("https");
+const { spawnSync } = require("child_process");
 
 class Action {
   constructor() {
     this.projectFile = process.env.INPUT_PROJECT_FILE_PATH;
-    this.packageName =
-      process.env.INPUT_PACKAGE_NAME || process.env.PACKAGE_NAME;
-    this.versionFile =
-      process.env.INPUT_VERSION_FILE_PATH ||
-      process.env.VERSION_FILE_PATH ||
-      this.projectFile;
-    this.versionRegex = new RegExp(
-      process.env.INPUT_VERSION_REGEX || process.env.VERSION_REGEX,
-      "m"
-    );
-    this.version =
-      process.env.INPUT_VERSION_STATIC || process.env.VERSION_STATIC;
-    this.tagCommit = JSON.parse(
-      process.env.INPUT_TAG_COMMIT || process.env.TAG_COMMIT
-    );
-    this.tagFormat = process.env.INPUT_TAG_FORMAT || process.env.TAG_FORMAT;
-    this.nugetKey = process.env.INPUT_NUGET_KEY || process.env.NUGET_KEY;
-    this.nugetSource =
-      process.env.INPUT_NUGET_SOURCE || process.env.NUGET_SOURCE;
-    this.includeSymbols = JSON.parse(
-      process.env.INPUT_INCLUDE_SYMBOLS || process.env.INCLUDE_SYMBOLS
-    );
-  }
-
-  _printErrorAndExit(msg) {
-    console.log(`##[error]😭 ${msg}`);
-    throw new Error(msg);
+    this.packageName = process.env.INPUT_PACKAGE_NAME;
+    this.versionRegex = new RegExp(process.env.INPUT_VERSION_REGEX, "m");
+    this.nugetKey = process.env.INPUT_NUGET_KEY;
+    this.nugetSource = process.env.INPUT_NUGET_SOURCE;
+    this.version = process.env.INPUT_VERSION_STATIC;
+    this.includeSymbols = JSON.parse(process.env.INPUT_INCLUDE_SYMBOLS || "false");
+    this.newVersionGenerated = false; // Flag para el estado de la acción
   }
 
   _executeCommand(cmd, options) {
-    console.log(`executing: [${cmd}]`);
-
-    const INPUT = cmd.split(" "),
-      TOOL = INPUT[0],
-      ARGS = INPUT.slice(1);
-    return spawnSync(TOOL, ARGS, options);
+    console.log(`Executing: ${cmd}`);
+    const [command, ...args] = cmd.split(" ");
+    const result = spawnSync(command, args, options);
+    if (result.error) {
+      console.error(`Command failed: ${result.error.message}`);
+      process.exit(1);
+    }
+    return result.stdout.toString();
   }
 
-  _executeInProcess(cmd) {
-    this._executeCommand(cmd, {
-      encoding: "utf-8",
-      stdio: [process.stdin, process.stdout, process.stderr],
+  _fetchExistingVersions(packageName) {
+    return new Promise((resolve, reject) => {
+      const url = `${this.nugetSource}/v3-flatcontainer/${packageName}/index.json`;
+      https.get(url, (res) => {
+        if (res.statusCode === 404) return resolve([]);
+        if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`));
+
+        let body = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk) => (body += chunk));
+        res.on("end", () => {
+          try {
+            const data = JSON.parse(body);
+            resolve(data.versions || []);
+          } catch (err) {
+            reject(err);
+          }
+        });
+      }).on("error", reject);
     });
   }
 
-  _tagCommit(version) {
-    const TAG = this.tagFormat.replace("*", version);
-
-    console.log(`✨ creating new tag ${TAG}`);
-
-    this._executeInProcess(`git tag ${TAG}`);
-    this._executeInProcess(`git push origin ${TAG}`);
-
-    process.stdout.write(`::set-output name=VERSION::${TAG}` + os.EOL);
-  }
-
-  _pushPackage(version, name) {
-    console.log(`✨ found new version (${version}) of ${name}`);
+  async _pushPackage(version, name) {
+    console.log(`✨ Generating new version: ${version}`);
 
     if (!this.nugetKey) {
-      console.log("##[warning]😢 NUGET_KEY not given");
+      console.warn("⚠️  NUGET_KEY not provided. Skipping upload.");
       return;
     }
 
-    console.log(`NuGet Source: ${this.nugetSource}`);
+    console.log("Building and packing the project...");
+    this._executeCommand(`dotnet build -c Release ${this.projectFile}`);
+    const packCmd = `dotnet pack ${
+      this.includeSymbols ? "--include-symbols -p:SymbolPackageFormat=snupkg" : ""
+    } --no-build -c Release ${this.projectFile} -o .`;
+    this._executeCommand(packCmd);
 
-    fs.readdirSync(".")
-      .filter((fn) => /\.s?nupkg$/.test(fn))
-      .forEach((fn) => fs.unlinkSync(fn));
+    console.log("Uploading packages...");
+    const pushCmd = `dotnet nuget push *.nupkg --source ${this.nugetSource} --api-key ${this.nugetKey} --skip-duplicate`;
+    this._executeCommand(pushCmd);
 
-    this._executeInProcess(`dotnet build -c Release ${this.projectFile}`);
-
-    this._executeInProcess(
-      `dotnet pack ${
-        this.includeSymbols
-          ? "--include-symbols -p:SymbolPackageFormat=snupkg"
-          : ""
-      } --no-build -c Release ${this.projectFile} -o .`
-    );
-
-    const packages = fs.readdirSync(".").filter((fn) => fn.endsWith("nupkg"));
-    console.log(`Generated Package(s): ${packages.join(", ")}`);
-
-    const pushCmd = `dotnet nuget push *.nupkg --source ${
-        this.nugetSource
-      } --api-key ${this.nugetKey} --skip-duplicate -n`,
-      pushOutput = this._executeCommand(pushCmd, { encoding: "utf-8" }).stdout;
-    
-//      const pushCmd = `dotnet nuget push *.nupkg --source ${
-//         this.nugetSource
-//       } --api-key ${this.nugetKey} --skip-duplicate ${
-//         !this.includeSymbols ? "-n 1" : ""
-//       }`,
-//       pushOutput = this._executeCommand(pushCmd, { encoding: "utf-8" }).stdout;
-
-    console.log("Push output");
-    console.log(pushOutput);
-
-    if (/error/.test(pushOutput))
-      this._printErrorAndExit(`${/error.*/.exec(pushOutput)[0]}`);
-
-    const packageFilename = packages.filter((p) => p.endsWith(".nupkg"))[0],
-      symbolsFilename = packages.filter((p) => p.endsWith(".snupkg"))[0];
-
-    process.stdout.write(
-      `::set-output name=PACKAGE_NAME::${packageFilename}` + os.EOL
-    );
-    process.stdout.write(
-      `::set-output name=PACKAGE_PATH::${path.resolve(packageFilename)}` +
-        os.EOL
-    );
-
-    if (symbolsFilename) {
-      process.stdout.write(
-        `::set-output name=SYMBOLS_PACKAGE_NAME::${symbolsFilename}` + os.EOL
-      );
-      process.stdout.write(
-        `::set-output name=SYMBOLS_PACKAGE_PATH::${path.resolve(
-          symbolsFilename
-        )}` + os.EOL
-      );
-    }
-
-    if (this.tagCommit) this._tagCommit(version);
+    this.newVersionGenerated = true; // Marca como generado
+    console.log(`✅ Version ${version} has been uploaded successfully.`);
   }
 
-  _checkForUpdate() {
-    if (!this.packageName) {
-      this.packageName = path
-        .basename(this.projectFile)
-        .split(".")
-        .slice(0, -1)
-        .join(".");
+  async run() {
+    if (!this.projectFile || !fs.existsSync(this.projectFile)) {
+      console.error("❌ Project file not found.");
+      process.exit(1);
     }
 
-    console.log(`Package Name: ${this.packageName}`);
-
-    https
-      .get(
-        `${this.nugetSource}/v3-flatcontainer/${this.packageName}/index.json`,
-        (res) => {
-          let body = "";
-
-          if (res.statusCode == 404)
-            this._pushPackage(this.version, this.packageName);
-
-          if (res.statusCode == 200) {
-            res.setEncoding("utf8");
-            res.on("data", (chunk) => (body += chunk));
-            res.on("end", () => {
-              const existingVersions = JSON.parse(body);
-              if (existingVersions.versions.indexOf(this.version) < 0)
-                this._pushPackage(this.version, this.packageName);
-            });
-          }
-        }
-      )
-      .on("error", (e) => {
-        this._printErrorAndExit(`error: ${e.message}`);
-      });
-  }
-
-  run() {
-    if (!this.projectFile || !fs.existsSync(this.projectFile))
-      this._printErrorAndExit("project file not found");
-
-    console.log(`Project Filepath: ${this.projectFile}`);
+    console.log(`📂 Project File: ${this.projectFile}`);
 
     if (!this.version) {
-      if (
-        this.versionFile !== this.projectFile &&
-        !fs.existsSync(this.versionFile)
-      )
-        this._printErrorAndExit("version file not found");
-
-      console.log(`Version Filepath: ${this.versionFile}`);
-      console.log(`Version Regex: ${this.versionRegex}`);
-
-      const versionFileContent = fs.readFileSync(this.versionFile, {
-          encoding: "utf-8",
-        }),
-        parsedVersion = this.versionRegex.exec(versionFileContent);
-
-      if (!parsedVersion)
-        this._printErrorAndExit("unable to extract version info!");
-
-      this.version = parsedVersion[1];
+      console.log(`🔍 Extracting version using regex: ${this.versionRegex}`);
+      const content = fs.readFileSync(this.projectFile, "utf-8");
+      const match = this.versionRegex.exec(content);
+      if (!match) {
+        console.error("❌ Version not found in project file.");
+        process.exit(1);
+      }
+      this.version = match[1];
     }
 
-    console.log(`Version: ${this.version}`);
+    console.log(`📦 Package Version: ${this.version}`);
 
-    this._pushPackage(this.version, this.packageName);
-    // this._checkForUpdate();
+    try {
+      const existingVersions = await this._fetchExistingVersions(this.packageName);
+      if (existingVersions.includes(this.version)) {
+        console.log(`ℹ️  Version ${this.version} already exists. No new version was generated.`);
+        return;
+      }
+
+      await this._pushPackage(this.version, this.packageName);
+    } catch (err) {
+      console.error(`❌ Error: ${err.message}`);
+      process.exit(1);
+    }
+
+    if (this.newVersionGenerated) {
+      console.log(`✅ New version ${this.version} was generated and published.`);
+    } else {
+      console.log(`ℹ️  No new version was generated.`);
+    }
   }
 }
 
-new Action().run();
+new Action().run().catch((err) => {
+  console.error(`❌ Unexpected error: ${err.message}`);
+  process.exit(1);
+});
