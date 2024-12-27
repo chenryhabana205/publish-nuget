@@ -42,7 +42,7 @@ inputs:
         description: Username for nuget source
         required: true
         default: false
-     NEXUS_PASSWORD:
+    NEXUS_PASSWORD:
         description: Password for nuget source
         required: true
         default: false
