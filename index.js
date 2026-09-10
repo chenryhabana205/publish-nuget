@@ -47,9 +47,34 @@ class Action {
     return result.status;
   }
 
+  /**
+   * NuGet does not store a version verbatim - it normalizes it, and the feed only ever knows the
+   * normalized form. Two rules matter here:
+   *   - leading zeroes are stripped from each numeric part  (1.0.01.0 -> 1.0.1)
+   *   - a fourth part equal to zero is dropped              (1.0.4.0  -> 1.0.4)
+   * A csproj saying <Version>1.0.4.0</Version> therefore publishes as 1.0.4, and asking the feed
+   * about "1.0.4.0" finds nothing at all - which used to look like "this version is new".
+   * Any prerelease or build-metadata suffix is preserved untouched.
+   */
+  _normalizeVersion(version) {
+    const match = /^(\d+(?:\.\d+)*)(.*)$/.exec(String(version).trim());
+    if (!match) return version;
+
+    const parts = match[1].split(".").map((p) => String(parseInt(p, 10)));
+    if (parts.some((p) => p === "NaN")) return version;
+    if (parts.length === 4 && parts[3] === "0") parts.pop();
+
+    return parts.join(".") + match[2];
+  }
+
   _checkVersionExists(packageName, version) {
     return new Promise((resolve, reject) => {
-      const url = `${this.nugetSource}/service/rest/v1/search?repository=${this.repository}&name=${packageName}&version=${version}`;
+      const normalized = this._normalizeVersion(version);
+      if (normalized !== version) {
+        console.log(`🔧 NuGet normalizes ${version} to ${normalized}; asking the feed about that.`);
+      }
+
+      const url = `${this.nugetSource}/service/rest/v1/search?repository=${this.repository}&name=${packageName}&version=${normalized}`;
       console.log(`Checking version existence with Search API: ${url}`);
 
       const requestOptions = this._buildRequestOptions(url);
@@ -73,9 +98,13 @@ class Action {
           try {
             const data = JSON.parse(body);
 
-            // Verifica si la respuesta contiene el paquete y versión especificados
-            const versionExists = data.items.some(
-              (item) => item.name === packageName && item.version === version
+            // Accept either form. The feed should only ever hold the normalized version, but
+            // matching both costs nothing and means a feed that kept the raw one still counts.
+            const versionExists = (data.items || []).some(
+              (item) =>
+                item.name === packageName &&
+                (item.version === version ||
+                  this._normalizeVersion(item.version) === normalized)
             );
 
             if (versionExists) {

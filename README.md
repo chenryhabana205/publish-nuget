@@ -27,7 +27,7 @@ jobs:
       # Publish
       - name: publish on version change
         id: publish_nuget
-        uses: chenryhabana205/publish-nuget@v20
+        uses: chenryhabana205/publish-nuget@v21
         with:
           # Filepath of the project to be packaged, relative to root of repository
           PROJECT_FILE_PATH: Core/Core.csproj
