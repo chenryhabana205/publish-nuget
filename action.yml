@@ -20,32 +20,34 @@ inputs:
         description: Useful with external providers like Nerdbank.GitVersioning, ignores VERSION_FILE_PATH & VERSION_REGEX
         required: false
     TAG_COMMIT:
-        description: Flag to toggle git tagging, enabled by default
+        description: UNUSED since the Nexus rewrite - this action does not create git tags. Kept so existing workflows that pass it do not warn.
         required: false
         default: true
     TAG_FORMAT:
-        description: Format of the git tag, [*] gets replaced with actual version
+        description: UNUSED since the Nexus rewrite - see TAG_COMMIT.
         required: false
         default: v*
     NUGET_KEY:
         description: API key to authenticate with NuGet server
         required: false
     NUGET_SOURCE:
-        description: NuGet server uri hosting the packages, defaults to https://api.nuget.org
+        description: Nexus BASE uri, NOT the repository path - /repository/<NEXUS_REPOSITORY>/ is appended when pushing, and the base is needed to reach the REST search API
         required: false
         default: https://api.nuget.org
+    NEXUS_REPOSITORY:
+        description: Nexus repository name to search and push to
+        required: false
+        default: nuget-hosted
     INCLUDE_SYMBOLS:
         description: Flag to toggle pushing symbols along with nuget package to the server, disabled by default
         required: false
         default: false
     NEXUS_USERNAME:
-        description: Username for nuget source
+        description: Username for the Nexus REST search API, which rejects anonymous queries
         required: true
-        default: false
     NEXUS_PASSWORD:
-        description: Password for nuget source
+        description: Password for the Nexus REST search API, which rejects anonymous queries
         required: true
-        default: false
 
 outputs:
     VERSION:
@@ -64,7 +66,7 @@ outputs:
         description: Path to the generated symbols package
 
 runs:
-    using: node20
+    using: node24
     main: index.js
 
 branding:

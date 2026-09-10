@@ -30,10 +30,20 @@ class Action {
       stdio: "inherit", // Usa buffers del sistema directamente
     });
 
+    // result.error is only set when the process could not be SPAWNED at all.
+    // A command that runs and then fails - a failing dotnet build, or a push
+    // Nexus rejects - leaves error undefined and reports itself in status.
     if (result.error) {
-      console.error(`Command failed: ${result.error.message}`);
+      console.error(`❌ Command could not be started: ${result.error.message}`);
       process.exit(1);
     }
+
+    if (result.status !== 0) {
+      const how = result.signal ? `killed by ${result.signal}` : `exit code ${result.status}`;
+      console.error(`❌ Command failed (${how}): ${cmd}`);
+      process.exit(result.status || 1);
+    }
+
     return result.status;
   }
 

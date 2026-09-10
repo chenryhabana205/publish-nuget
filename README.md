@@ -27,7 +27,7 @@ jobs:
       # Publish
       - name: publish on version change
         id: publish_nuget
-        uses: chenryhabana205/publish-nuget@v1
+        uses: chenryhabana205/publish-nuget@v20
         with:
           # Filepath of the project to be packaged, relative to root of repository
           PROJECT_FILE_PATH: Core/Core.csproj
@@ -53,8 +53,20 @@ jobs:
           # API key to authenticate with NuGet server
           # NUGET_KEY: ${{secrets.NUGET_API_KEY}}
 
-          # NuGet server uri hosting the packages, defaults to https://api.nuget.org
-          # NUGET_SOURCE: https://api.nuget.org
+          # Nexus BASE url - NOT the repository path. The action appends
+          # /repository/<NEXUS_REPOSITORY>/ to it when pushing, and needs the base to
+          # reach Nexus' REST search API. Passing the full repository path here breaks
+          # the existing-version check.
+          # NUGET_SOURCE: https://nexus.example.com
+
+          # Nexus repository name, defaults to nuget-hosted
+          # NEXUS_REPOSITORY: nuget-hosted
+
+          # Required. Before pushing, the action asks Nexus whether this version is
+          # already published, via /service/rest/v1/search - and Nexus refuses that
+          # query anonymously. Without these the check cannot run.
+          NEXUS_USERNAME: ${{secrets.NEXUSUSERNAME}}
+          NEXUS_PASSWORD: ${{secrets.NEXUSPASSWORD}}
 
           # Flag to toggle pushing symbols along with nuget package to the server, disabled by default
           # INCLUDE_SYMBOLS: false
